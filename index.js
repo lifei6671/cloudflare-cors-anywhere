@@ -13,10 +13,10 @@ The script is configurable with whitelist and blacklist patterns, although the b
 The main goal is to facilitate cross-origin requests while enforcing specific security and rate-limiting policies.
 */
 
-// Configuration: Whitelist and Blacklist (not used in this version)
+// Configuration: Hardcoded Whitelist and Blacklist
 // whitelist = [ "^http.?://www.zibri.org$", "zibri.org$", "test\\..*" ];  // regexp for whitelisted urls
-const blacklistUrls = [];           // regexp for blacklisted urls
-const whitelistOrigins = [ ".*" ];   // regexp for whitelisted origins
+const defaultBlacklistUrls = [];           // regexp for blacklisted urls
+const defaultWhitelistOrigins = [ ".*" ];   // regexp for whitelisted origins
 
 // Function to check if a given URI or origin is listed in the whitelist or blacklist
 function isListedInWhitelist(uri, listing) {
@@ -34,19 +34,39 @@ function isListedInWhitelist(uri, listing) {
     return isListed;
 }
 
-// Event listener for incoming fetch requests
-addEventListener("fetch", async event => {
-    event.respondWith((async function() {
-        const isPreflightRequest = (event.request.method === "OPTIONS");
+export default {
+    async fetch(request, env, ctx) {
+        const isPreflightRequest = (request.method === "OPTIONS");
         
-        const originUrl = new URL(event.request.url);
+        const originUrl = new URL(request.url);
+
+        // Fetch configuration from KV if available
+        // Expected KV binding name: KV
+        // Keys: 'blacklistUrls', 'whitelistOrigins' (values should be JSON arrays of strings)
+        let kvBlacklist = [];
+        let kvWhitelist = [];
+        
+        if (env.KV) {
+            try {
+                const bl = await env.KV.get("blacklistUrls", { type: "json" });
+                if (Array.isArray(bl)) kvBlacklist = bl;
+                
+                const wl = await env.KV.get("whitelistOrigins", { type: "json" });
+                if (Array.isArray(wl)) kvWhitelist = wl;
+            } catch (e) {
+                console.warn("Failed to fetch from KV:", e);
+            }
+        }
+
+        const blacklistUrls = [...defaultBlacklistUrls, ...kvBlacklist];
+        const whitelistOrigins = [...defaultWhitelistOrigins, ...kvWhitelist];
 
         // Function to modify headers to enable CORS
         function setupCORSHeaders(headers) {
-            headers.set("Access-Control-Allow-Origin", event.request.headers.get("Origin"));
+            headers.set("Access-Control-Allow-Origin", request.headers.get("Origin"));
             if (isPreflightRequest) {
-                headers.set("Access-Control-Allow-Methods", event.request.headers.get("access-control-request-method"));
-                const requestedHeaders = event.request.headers.get("access-control-request-headers");
+                headers.set("Access-Control-Allow-Methods", request.headers.get("access-control-request-method"));
+                const requestedHeaders = request.headers.get("access-control-request-headers");
 
                 if (requestedHeaders) {
                     headers.set("Access-Control-Allow-Headers", requestedHeaders);
@@ -59,11 +79,11 @@ addEventListener("fetch", async event => {
 
         const targetUrl = decodeURIComponent(decodeURIComponent(originUrl.search.substr(1)));
 
-        const originHeader = event.request.headers.get("Origin");
-        const connectingIp = event.request.headers.get("CF-Connecting-IP");
+        const originHeader = request.headers.get("Origin");
+        const connectingIp = request.headers.get("CF-Connecting-IP");
 
         if ((!isListedInWhitelist(targetUrl, blacklistUrls)) && (isListedInWhitelist(originHeader, whitelistOrigins))) {
-            let customHeaders = event.request.headers.get("x-cors-headers");
+            let customHeaders = request.headers.get("x-cors-headers");
 
             if (customHeaders !== null) {
                 try {
@@ -73,7 +93,7 @@ addEventListener("fetch", async event => {
 
             if (originUrl.search.startsWith("?")) {
                 const filteredHeaders = {};
-                for (const [key, value] of event.request.headers.entries()) {
+                for (const [key, value] of request.headers.entries()) {
                     if (
                         (key.match("^origin") === null) &&
                         (key.match("eferer") === null) &&
@@ -89,13 +109,13 @@ addEventListener("fetch", async event => {
                     Object.entries(customHeaders).forEach((entry) => (filteredHeaders[entry[0]] = entry[1]));
                 }
 
-                const newRequest = new Request(event.request, {
+                const newRequest = new Request(request, {
                     redirect: "follow",
                     headers: filteredHeaders
                 });
 
                 const response = await fetch(targetUrl, newRequest);
-                const responseHeaders = new Headers(response.headers);
+                let responseHeaders = new Headers(response.headers);
                 const exposedHeaders = [];
                 const allResponseHeaders = {};
                 for (const [key, value] of response.headers.entries()) {
@@ -118,14 +138,15 @@ addEventListener("fetch", async event => {
                 return new Response(responseBody, responseInit);
 
             } else {
-                const responseHeaders = new Headers();
+                let responseHeaders = new Headers();
                 responseHeaders = setupCORSHeaders(responseHeaders);
 
                 let country = false;
                 let colo = false;
-                if (typeof event.request.cf !== "undefined") {
-                    country = event.request.cf.country || false;
-                    colo = event.request.cf.colo || false;
+                // request.cf is available in Cloudflare Workers
+                if (typeof request.cf !== "undefined") {
+                    country = request.cf.country || false;
+                    colo = request.cf.colo || false;
                 }
 
                 return new Response(
@@ -163,5 +184,5 @@ addEventListener("fetch", async event => {
                 }
             );
         }
-    })());
-});
+    }
+};
