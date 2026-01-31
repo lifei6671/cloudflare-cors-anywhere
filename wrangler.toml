@@ -1,10 +1,10 @@
 name = "cloudflare-cors-anywhere"
 main = "index.js"
-compatibility_date = "2026-01-31"
+compatibility_date = "2023-04-17"
 
-# To use KV storage for blacklistUrls and whitelistOrigins:
+# To use KV storage for whitelistUrls and whitelistOrigins:
 # 1. Create a KV namespace: `wrangler kv:namespace create CORS_KV`
 # 2. Add the binding configuration below with your ID
-[[kv_namespaces]]
-binding = "common"
-id = "c00d167c95d844e38ede8d4200a296c0"
+# [[kv_namespaces]]
+# binding = "KV"
+# id = "your-kv-namespace-id"

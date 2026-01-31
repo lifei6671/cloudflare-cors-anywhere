@@ -9,13 +9,13 @@ cross-origin resource sharing for specified origins and URLs.
 It handles OPTIONS preflight requests and modifies response headers accordingly to enable CORS.
 The script also includes functionality to parse custom headers and provide detailed information
 about the CORS proxy service when accessed without specific parameters.
-The script is configurable with whitelist and blacklist patterns, although the blacklist feature is currently unused.
+The script is configurable with whitelist patterns for both origins and target URLs.
 The main goal is to facilitate cross-origin requests while enforcing specific security and rate-limiting policies.
 */
 
-// Configuration: Hardcoded Whitelist and Blacklist
+// Configuration: Hardcoded Whitelist
 // whitelist = [ "^http.?://www.zibri.org$", "zibri.org$", "test\\..*" ];  // regexp for whitelisted urls
-const defaultBlacklistUrls = [];           // regexp for blacklisted urls
+const defaultWhitelistUrls = [ ".*" ];           // regexp for whitelisted urls
 const defaultWhitelistOrigins = [ ".*" ];   // regexp for whitelisted origins
 
 // Function to check if a given URI or origin is listed in the whitelist or blacklist
@@ -42,24 +42,24 @@ export default {
 
         // Fetch configuration from KV if available
         // Expected KV binding name: KV
-        // Keys: 'blacklistUrls', 'whitelistOrigins' (values should be JSON arrays of strings)
-        let kvBlacklist = [];
-        let kvWhitelist = [];
+        // Keys: 'whitelistUrls', 'whitelistOrigins' (values should be JSON arrays of strings)
+        let kvWhitelistUrls = [];
+        let kvWhitelistOrigins = [];
         
         if (env.KV) {
             try {
-                const bl = await env.KV.get("blacklistUrls", { type: "json" });
-                if (Array.isArray(bl)) kvBlacklist = bl;
+                const wlu = await env.KV.get("whitelistUrls", { type: "json" });
+                if (Array.isArray(wlu)) kvWhitelistUrls = wlu;
                 
-                const wl = await env.KV.get("whitelistOrigins", { type: "json" });
-                if (Array.isArray(wl)) kvWhitelist = wl;
+                const wlo = await env.KV.get("whitelistOrigins", { type: "json" });
+                if (Array.isArray(wlo)) kvWhitelistOrigins = wlo;
             } catch (e) {
                 console.warn("Failed to fetch from KV:", e);
             }
         }
 
-        const blacklistUrls = [...defaultBlacklistUrls, ...kvBlacklist];
-        const whitelistOrigins = [...defaultWhitelistOrigins, ...kvWhitelist];
+        const whitelistUrls = [...defaultWhitelistUrls, ...kvWhitelistUrls];
+        const whitelistOrigins = [...defaultWhitelistOrigins, ...kvWhitelistOrigins];
 
         // Function to modify headers to enable CORS
         function setupCORSHeaders(headers) {
@@ -82,7 +82,8 @@ export default {
         const originHeader = request.headers.get("Origin");
         const connectingIp = request.headers.get("CF-Connecting-IP");
 
-        if ((!isListedInWhitelist(targetUrl, blacklistUrls)) && (isListedInWhitelist(originHeader, whitelistOrigins))) {
+        // Check if both the target URL and the Origin are in their respective whitelists
+        if ((isListedInWhitelist(targetUrl, whitelistUrls)) && (isListedInWhitelist(originHeader, whitelistOrigins))) {
             let customHeaders = request.headers.get("x-cors-headers");
 
             if (customHeaders !== null) {
