@@ -246,7 +246,7 @@ function demoPage(request, extra = {}) {
 
     <div class="row">
       <a class="btn" href="${esc(sampleUrl)}" target="_blank" rel="noreferrer">打开示例请求</a>
-      <a class="btn secondary" href="${esc(base)}" target="_blank" rel="noreferrer">刷新本页</a>
+      <a class="btn secondary" href="${esc(base)}" rel="noreferrer">刷新本页</a>
     </div>
 
     <hr />
@@ -268,6 +268,13 @@ curl -i "$PROXY?url=$(python -c 'import urllib.parse,sys; print(urllib.parse.quo
     <p class="muted">
       如果返回 403：通常是 <code>Origin</code> 不在白名单，或目标域名不在 <code>whitelistHostnames</code> 中，或触发限流（429）。
     </p>
+
+    <div class="row" style="margin-top: 24px; font-size: 13px; color: #666;">
+      <span>GitHub:</span>
+      <a href="https://github.com/lifei6671/cloudflare-cors-anywhere" target="_blank" style="color: #444;">Current Repo (lifei6671)</a>
+      <span style="margin: 0 6px;">|</span>
+      <a href="https://github.com/Zibri/cloudflare-cors-anywhere" target="_blank" style="color: #444;">Original Repo (Zibri)</a>
+    </div>
   </div>
 </body>
 </html>`;
