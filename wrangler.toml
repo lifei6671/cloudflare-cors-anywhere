@@ -4,12 +4,27 @@ compatibility_date = "2026-01-31"
 workers_dev = true
 
 [[routes]]
-pattern = "cros-anywhere.disign.me"
+pattern = "cors-anywhere.disign.me/*"
 zone_name = "disign.me" 
 
 # To use KV storage for blacklistUrls and whitelistOrigins:
 # 1. Create a KV namespace: `wrangler kv:namespace create CORS_KV`
 # 2. Add the binding configuration below with your ID
 [[kv_namespaces]]
-binding = "common"
+binding = "KV"
 id = "c00d167c95d844e38ede8d4200a296c0"
+
+[vars]
+# 十分钟限制
+LIMIT_10M_PER_IP_ORIGIN = "300"
+# 一天的限制
+LIMIT_1D_PER_IP_ORIGIN = "5000"
+
+[durable_objects]
+bindings = [
+  { name = "RATE_LIMITER", class_name = "RateLimiterDO" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RateLimiterDO"]
