@@ -277,6 +277,11 @@ curl -i "$PROXY?url=$(python -c 'import urllib.parse,sys; print(urllib.parse.quo
  * Durable Object：限流器（固定窗口）
  * - 10 分钟窗口 + 日窗口
  * - key 由外部传入（例如 ip|origin）
+ *
+ * 自动过期清理策略：
+ * - 10 分钟桶 key：写入时设置 TTL（默认 2 小时）
+ * - 日桶 key：写入时设置 TTL（默认 2 天）
+ * 这样 DO 存储会自动清理过期 key，避免长期累积占用存储。
  */
 export class RateLimiterDO {
   constructor(state, env) {
@@ -291,8 +296,28 @@ export class RateLimiterDO {
     if (!body || typeof body.key !== "string") return new Response("Bad Request", { status: 400 });
 
     // 从 env 读取限流配置，如果未设置则使用默认值
-    const limit10m = parseInt(this.env.LIMIT_10M_PER_IP_ORIGIN) || DEFAULT_LIMIT_10M_PER_IP_ORIGIN;
-    const limit1d = parseInt(this.env.LIMIT_1D_PER_IP_ORIGIN) || DEFAULT_LIMIT_1D_PER_IP_ORIGIN;
+    const limit10m =
+      parseInt(this.env.LIMIT_10M_PER_IP_ORIGIN) || DEFAULT_LIMIT_10M_PER_IP_ORIGIN;
+    const limit1d =
+      parseInt(this.env.LIMIT_1D_PER_IP_ORIGIN) || DEFAULT_LIMIT_1D_PER_IP_ORIGIN;
+
+    /**
+     * 自动过期清理（TTL）配置：
+     * - TTL_10M_BUCKET_TTL: 10 分钟窗口桶 key 的存活秒数（默认 2 小时）
+     * - TTL_1D_BUCKET_TTL:  日窗口桶 key 的存活秒数（默认 2 天）
+     *
+     * 说明：
+     * - 10 分钟桶虽然只需要 10 分钟，但建议保留更久一点（比如 2 小时），避免边界抖动导致误判/重复创建。
+     * - 日桶建议 2 天，覆盖跨日边界并留少量排查窗口。
+     */
+    const ttl10m = Math.max(
+      600, // 最低给 10 分钟，避免配置写成 0
+      parseInt(this.env.TTL_10M_BUCKET_TTL) || 2 * 60 * 60
+    );
+    const ttl1d = Math.max(
+      24 * 60 * 60, // 最低给 1 天
+      parseInt(this.env.TTL_1D_BUCKET_TTL) || 2 * 24 * 60 * 60
+    );
 
     const now = Date.now();
     const bucket10m = Math.floor(now / 600000);
@@ -307,8 +332,9 @@ export class RateLimiterDO {
     const n10 = c10 + 1;
     const n1d = c1d + 1;
 
-    await this.state.storage.put(k10, n10);
-    await this.state.storage.put(k1d, n1d);
+    // ✅ 关键：写入时设置 expirationTtl（自动过期清理）
+    await this.state.storage.put(k10, n10, { expirationTtl: ttl10m });
+    await this.state.storage.put(k1d, n1d, { expirationTtl: ttl1d });
 
     const limited = (n10 > limit10m) || (n1d > limit1d);
 
