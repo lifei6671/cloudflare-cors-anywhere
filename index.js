@@ -34,6 +34,48 @@ function isListedInWhitelist(uri, listing) {
     return isListed;
 }
 
+// Helper function to generate styled HTML responses
+function getHtmlResponse(title, message, details = "") {
+    return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title}</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f5f5f7; color: #1d1d1f; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
+        .card { background: white; border-radius: 18px; box-shadow: 0 4px 24px rgba(0,0,0,0.06); padding: 40px; max-width: 500px; width: 100%; text-align: center; }
+        h1 { font-size: 28px; font-weight: 700; margin-bottom: 16px; color: #1d1d1f; }
+        p { font-size: 17px; line-height: 1.47; margin-bottom: 24px; color: #86868b; }
+        .details { background: #f5f5f7; border-radius: 12px; padding: 16px; margin-bottom: 24px; text-align: left; font-family: monospace; font-size: 13px; color: #424245; overflow-x: auto; white-space: pre-wrap; }
+        .btn-group { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .btn { display: inline-block; padding: 12px 24px; border-radius: 980px; font-size: 14px; font-weight: 600; text-decoration: none; transition: all 0.2s ease; }
+        .btn-primary { background-color: #0071e3; color: white; }
+        .btn-primary:hover { background-color: #0077ed; }
+        .btn-secondary { background-color: #e8e8ed; color: #1d1d1f; }
+        .btn-secondary:hover { background-color: #d2d2d7; }
+        .footer { margin-top: 32px; font-size: 12px; color: #86868b; }
+        a.link { color: #0071e3; text-decoration: none; }
+        a.link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>${title}</h1>
+        <p>${message}</p>
+        ${details ? `<div class="details">${details}</div>` : ''}
+        <div class="btn-group">
+            <a href="https://github.com/lifei6671/cloudflare-cors-anywhere" class="btn btn-primary" target="_blank">View on GitHub</a>
+        </div>
+        <div class="footer">
+            Powered by Cloudflare Workers
+        </div>
+    </div>
+</body>
+</html>`;
+}
+
 export default {
     async fetch(request, env, ctx) {
         const isPreflightRequest = (request.method === "OPTIONS");
@@ -150,12 +192,9 @@ export default {
                     colo = request.cf.colo || false;
                 }
 
-                return new Response(
-                    "CLOUDFLARE-CORS-ANYWHERE\n\n" +
-                    "Source:\nhttps://github.com/Zibri/cloudflare-cors-anywhere\n\n" +
+                const infoText = 
                     "Usage:\n" +
                     originUrl.origin + "/?uri\n\n" +
-                    "Donate:\nhttps://paypal.me/Zibri/5\n\n" +
                     "Limits: 100,000 requests/day\n" +
                     "          1,000 requests/10 minutes\n\n" +
                     (originHeader !== null ? "Origin: " + originHeader + "\n" : "") +
@@ -163,19 +202,22 @@ export default {
                     (country ? "Country: " + country + "\n" : "") +
                     (colo ? "Datacenter: " + colo + "\n" : "") +
                     "\n" +
-                    (customHeaders !== null ? "\nx-cors-headers: " + JSON.stringify(customHeaders) : ""),
+                    (customHeaders !== null ? "\nx-cors-headers: " + JSON.stringify(customHeaders) : "");
+
+                return new Response(
+                    getHtmlResponse("Cloudflare CORS Anywhere", "This is a CORS proxy service. Use it by appending the target URL to the current URL.", infoText),
                     {
                         status: 200,
-                        headers: responseHeaders
+                        headers: {
+                            ...Object.fromEntries(responseHeaders),
+                            "Content-Type": "text/html"
+                        }
                     }
                 );
             }
         } else {
             return new Response(
-                "Create your own CORS proxy</br>\n" +
-                "<a href='https://github.com/Zibri/cloudflare-cors-anywhere'>https://github.com/Zibri/cloudflare-cors-anywhere</a></br>\n" +
-                "\nDonate</br>\n" +
-                "<a href='https://paypal.me/Zibri/5'>https://paypal.me/Zibri/5</a>\n",
+                getHtmlResponse("Access Forbidden", "This CORS proxy is restricted. Please deploy your own instance or check the whitelist settings."),
                 {
                     status: 403,
                     statusText: 'Forbidden',
