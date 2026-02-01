@@ -20,6 +20,12 @@ LIMIT_10M_PER_IP_ORIGIN = "300"
 # 一天的限制
 LIMIT_1D_PER_IP_ORIGIN = "5000"
 
+# 10分钟桶计数的过期时间（秒）：建议 2 小时，避免边界抖动 + 让短期排查更方便
+TTL_10M_BUCKET_TTL = "7200"
+
+# 日桶计数的过期时间（秒）：建议 2 天，覆盖跨日边界 + 留一点回溯窗口
+TTL_1D_BUCKET_TTL = "172800"
+
 [durable_objects]
 bindings = [
   { name = "RATE_LIMITER", class_name = "RateLimiterDO" }
