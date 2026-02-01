@@ -15,7 +15,7 @@ The main goal is to facilitate cross-origin requests while enforcing specific se
 
 // Configuration: Hardcoded Whitelist
 // whitelist = [ "^http.?://www.zibri.org$", "zibri.org$", "test\\..*" ];  // regexp for whitelisted urls
-const defaultWhitelistUrls = [ ".*" ];           // regexp for whitelisted urls
+const defaultWhitelistUrls = [];           // regexp for whitelisted urls
 const defaultWhitelistOrigins = [ ".*" ];   // regexp for whitelisted origins
 
 // Function to check if a given URI or origin is listed in the whitelist or blacklist
