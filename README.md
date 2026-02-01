@@ -25,7 +25,7 @@ A secure, high-performance CORS proxy built on Cloudflare Workers, designed for 
 
 ## Prerequisites
 
-- **Cloudflare Account**: Requires a **Workers Paid Plan** ($5/mo) to use Durable Objects.
+- **Cloudflare Account**: Free plan is sufficient (Durable Objects are now available on the Free plan).
 - **Node.js**: Version 16.13.0 or later.
 - **Wrangler CLI**: Installed globally (`npm install -g wrangler`).
 

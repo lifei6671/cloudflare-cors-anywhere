@@ -25,7 +25,7 @@
 
 ## 前置要求
 
-- **Cloudflare 账户**：需要 **Workers Paid Plan**（$5/月）以使用 Durable Objects。
+- **Cloudflare 账户**：免费账户即可（Durable Objects 现已支持免费计划）。
 - **Node.js**：版本 16.13.0 或更高。
 - **Wrangler CLI**：全局安装 (`npm install -g wrangler`)。
 
